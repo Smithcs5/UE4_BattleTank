@@ -36,7 +36,7 @@ void ATankPlayerController::AimTowardsCrosshair() {
 
 	FVector HitLocation; //Out parameter
 	if (GetSightRayHitLocation(HitLocation)) { //Has "side-effect", is going to line trace
-		//UE_LOG(LogTemp, Warning, TEXT("Look direction: %s"), *HitLocation.ToString());	
+		UE_LOG(LogTemp, Warning, TEXT("Hit Location: %s"), *HitLocation.ToString());	
 		//TODO Tell controlled tank to aim at this point
 	}
 }
@@ -47,8 +47,43 @@ bool ATankPlayerController::GetSightRayHitLocation(FVector& HitLocation) const {
 	GetViewportSize(ViewportSizeX, ViewportSizeY);
 	auto ScreenLocation = FVector2D(ViewportSizeX * CrossHairXLocation, ViewportSizeY * CrossHairYLocation);
 	//UE_LOG(LogTemp, Warning, TEXT("ScreenLocation: %s"), *ScreenLocation.ToString());
-	//"De-project" the screen position of the crosshair to a world direction
-	//Line-Trace along that look direction, and see what we hit (up to max range)
+	FVector LookDirection;
+	if (GetLookDirection(ScreenLocation, LookDirection)) {
+		//Line-Trace along that Look Direction, and see what we hit (up to max range)
+		GetLookVectorHitLocation(LookDirection, HitLocation);
+	}
+	
+
+	//Line-Trace along that Look Direction, and see what we hit (up to max range)
 	return true;
+}
+
+bool ATankPlayerController::GetLookVectorHitLocation(FVector LookDirection, FVector& HitLocation) const {
+	FHitResult HitResult;
+	auto StartLocation = PlayerCameraManager->GetCameraLocation();
+	auto EndLocation = StartLocation + (LookDirection * LineTraceRange);
+	if (GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		StartLocation,
+		EndLocation,
+		ECollisionChannel::ECC_Visibility)
+		)
+	{
+		HitLocation = HitResult.Location;
+		return true;
+	}
+	HitLocation = FVector(0);
+	return false; //Linetrace failed.
+}
+
+
+bool ATankPlayerController::GetLookDirection(FVector2D ScreenLocation, FVector& LookDireciton) const {
+	//"De-project" the screen position of the crosshair to a world direction
+	FVector CameraWorldLocation; //To be discarded
+	return DeprojectScreenPositionToWorld(
+		ScreenLocation.X,
+		ScreenLocation.Y,
+		CameraWorldLocation,
+		LookDireciton);
 }
 
